@@ -1,22 +1,24 @@
 import random
 
 def randomWord():
-    with open("5LetterDict.txt") as f:
-        lines = f.readlines()
+    with open("ChooseDict.txt") as f:
+        line = f.readlines()[0].split(",")
     
-    return list(lines[random.randint(0,len(lines))])
+    return list(line[random.randint(0,len(line))])
 
-def checkWord(guess, word):
+def checkWord(test, word):
     sample = word[:]
+    guess = test[:]
     output = [-1,-1,-1,-1,-1]
     for i in range(0, len(guess)):
 
-        if guess[i] == word[i]: # if its in the right place, return 1
+        if guess[i] == sample[i]: # if its in the right place, return 1
             output[i] = 1
-        elif guess[i] in word: #if its in any other place, return 0
+            sample[i] = "_"
+    
+        elif guess[i] in sample: #if its in any other place, return 0
             output[i] = 0
-
-        sample[i] = '_'
+            sample[sample.index(guess[i])] = "_"
     
     return output
 
@@ -61,6 +63,19 @@ def printAlphabet():
 
     print((" ".join(output)).upper())
 
+
+def inDic(word):
+    with open("GuessDict.txt") as f:
+        lines = f.readlines()[0].split(",")
+    if (word in lines):
+        return True
+    else:
+        with open("5LetterDict.txt") as f:
+            lines = f.readlines()[0].split(",")
+    return word in lines
+
+
+
 def printBoard():
     global totalGuesses
     global numGuesses
@@ -84,16 +99,14 @@ def printBoard():
     
     print("".join(output))
 
-def inDic(word):
-    with open("5LetterDict.txt") as f:
-        lines = f.readlines()
-    return word + "\n" in lines
+
 
 wrong = []
 close = []
 correct = []
 totalGuesses = []
 numGuesses = 6
+
 
 secretWord = randomWord()
 
