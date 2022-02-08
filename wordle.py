@@ -16,9 +16,11 @@ def checkWord(test, word):
             output[i] = 1
             sample[i] = "_"
     
-        elif guess[i] in sample: #if its in any other place, return 0
+    for i in range(0, len(guess)):
+        if guess[i] in sample: #if its in any other place, return 0
             output[i] = 0
-            sample[sample.index(guess[i])] = "_"
+            if (guess[i] != sample[i]):
+                sample[sample.index(guess[i])] = "_"
     
     return output
 
@@ -70,7 +72,7 @@ def inDic(word):
     if (word in lines):
         return True
     else:
-        with open("5LetterDict.txt") as f:
+        with open("ChooseDict.txt") as f:
             lines = f.readlines()[0].split(",")
     return word in lines
 
