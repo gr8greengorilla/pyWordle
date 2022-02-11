@@ -4,7 +4,7 @@ def randomWord():
     with open("ChooseDict.txt") as f:
         line = f.readlines()[0].split(",")
     
-    return list(line[random.randint(0,len(line))])
+    return list(line[random.randint(0,len(line)-1)])
 
 def checkWord(test, word):
     sample = word[:]
@@ -12,15 +12,15 @@ def checkWord(test, word):
     output = [-1,-1,-1,-1,-1]
     for i in range(0, len(guess)):
 
-        if guess[i] == sample[i]: # if its in the right place, return 1
+        if guess[i] == sample[i]:
             output[i] = 1
             sample[i] = "_"
     
     for i in range(0, len(guess)):
+
         if guess[i] in sample: #if its in any other place, return 0
             output[i] = 0
-            if (guess[i] != sample[i]):
-                sample[sample.index(guess[i])] = "_"
+            sample[sample.index(guess[i])] = "_"
     
     return output
 
@@ -96,34 +96,36 @@ def printBoard():
             
         output.append("\n")
     
-    for i in range(0,numGuesses - len(totalGuesses)):
+    for i in range(0,maxGuesses - len(totalGuesses)):
         output.append(" - - - - - - \n")
     
     print("".join(output))
 
 
 
-wrong = []
-close = []
-correct = []
-totalGuesses = []
-numGuesses = 6
 
 
-secretWord = randomWord()
 
-while (len(totalGuesses) < numGuesses):
-    a = input("Make a guess\n")
+class Game():
+    global wrong
+    global close
+    global correct
+    global totalGuesses
+    global maxGuesses
 
-    if (inDic(a)):
-        if makeGuess(list(a), secretWord):
-            print("You win!")
-            exit()
-        else:
-            print("\n\n")
-            printBoard()
-            print("\n")
-            printAlphabet()
+    def __init__(self):
+        self.wrong = []
+        self.close = []
+        self.correct = []
+        self.totalGuesses = []
+        self.maxGuesses = 6
+        self.numGuesses = 0
 
-print("You lose")
-print("Word was " + "".join(secretWord))
+        self.secretWord = randomWord()
+
+    def takeGuess(self, guess):
+        if (inDic(guess)):
+            if (self.numGuesses == 100):
+                return [-200,0,0,0,0]
+            self.numGuesses += 1
+            return checkWord(guess, self.secretWord)

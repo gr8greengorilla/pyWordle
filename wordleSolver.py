@@ -1,4 +1,9 @@
+from asyncore import read
 import math
+from matplotlib.pyplot import get
+from torch import real
+import wordfreq
+import wordle
 #Compare every word with every other word
 
 #take the highest average bit
@@ -24,102 +29,235 @@ def getDict():
 def checkWord(guess, sample):
     sample = list(sample)
     output = [-1,-1,-1,-1,-1]
-
-    
-
-    for i in range(0, len(guess)):
+    guess = list(guess)
+    '''for i in range(0, len(guess)):
 
         if (guess[i] in sample):
             output[i] = 0
             if (guess[i] == sample[i]):
-                output[i] = 1
-        
-        """   for i in range(0, len(guess)):
-        if guess[i] == sample[i]: # if its in the right place, return 1
-            output[i] = 1
-            sample[i] = "_"
-    
+                output[i] = 1'''
+
     for i in range(0, len(guess)):
+        if guess[i] == sample[i]:
+            output[i] = 1
+            guess[i] = "_"
+            sample[i] = "+"
+
+    for i in range(0, len(guess)):
+
         if guess[i] in sample: #if its in any other place, return 0
             output[i] = 0
-            if (guess[i] != sample[i]):
-                sample[sample.index(guess[i])] = "_" """
-    
+            sample[sample.index(guess[i])] = "?"
+
     return output
 
-def getBitSplit(dictonary, word, j = 0):
-    word = list(word)
+def getBitSplit(dictonary, word, logpower=2):
     diclength = len(dictonary)
-    if (diclength > 1):
-        dictonary = dictonary[::int(math.log2(len(dictonary)))]
+
+    if (logpower != 1 and diclength > logpower):
+        dictonary = dictonary[::int(math.log(diclength, logpower))]
+    samplelen = len(dictonary)
 
     bits = 0
     for i in range(0,len(dictonary)):
+        compare = checkWord(word, dictonary[i])
+        remainersize = len(filterList(dictonary, word, compare))
+        p = remainersize/samplelen
 
-
-
-        print("".join(word) + " " + str(i) + "/" + str(len(dictonary)) + "  " + str(j) + "/" + str(diclength), end="\r")
-
-        remainersize = len(filterList(dictonary, word, checkWord(word, dictonary[i])))
-        p = remainersize/len(dictonary)
-        
-        if p > 0:
-            bits += -math.log2(p)#get bit of new dict/old dic lengths
-        else:
-            print(p)
-            print(str(remainersize) + " / " + str(len(dictonary)))
-            print(checkWord(word, dictonary[i]))
+        bits += -math.log2(p)#get bit of new dict/old dic lengths
         
     
-    return bits/len(dictonary)
-
+    return bits/samplelen
 
 def filterList(dictonary, word, score):
     output = []
-    for i in range(0,len(dictonary)):
+
+
+    for realword in dictonary:
         remove = False
-        check = dictonary[i]
-        for j in range(0,len(word)):
-            
-            if score[j] == -1 and word[j] in check:
+        check = list(realword)
+
+        '''for j in range(0,len(word)):
+            if (score[j] == -1 and word[j] in check) or (score[j] == 1 and word[j] != check[j]) or (score[j] == 0 and word[j] not in check[:j] + check[j+1:]):
                 remove = True
-                break
-            
-            elif score[j] == 0:
-                if not word[j] in check[:j] + check[j+1:]:
+                break'''
+
+        for i in range(0,len(word)):
+
+                if score[i] == 1:
+                    if (word[i] == check[i]):
+                        
+                        check[i] = "_"
+                    else:
+                        remove = True
+                        break
+        
+
+        if not remove:
+            for i in range(0,len(word)):
+                if score[i] == 0:
+                    if word[i] in check[:i] + check[i+1:]:
+                        check[check.index(word[i])] = "_"
+                    else:
+                        remove = True
+                        break
+
+
+        if not remove:
+            for i in range(0,len(word)):
+                if (score[i] == -1 and word[i] in check):
                     remove = True
                     break
-            
-            elif score[j] == 1 and word[j] != check[j]:
-                remove = True
-                break
 
-        if (not remove):
-            output.append(check)
+        if not remove:
+            output.append(realword)
     
     return output
+
+
+def getStats(dict):
+    dictlen = len(dict)
+
+    freqs = [wordfreq.word_frequency(elem, "en") for elem in dict]
+    mean = sum(freqs)/dictlen
+    sd = (sum((elem - mean) ** 2 for elem in freqs)/dictlen) ** .5
+
+    freqs = [(elem - mean)/sd for elem in freqs]
+
+    return mean, sd
+
+def manualHelper():
+    dict = getDict()
+    mean, sd = getStats(dict)
+
+    while True:
+        word = input("Enter your word: ")
+        result = [0,0,0,0,0]
+        for i in range(0,5):
+            result[i] = int(input(str(i + 1) + ": "))
+        
+        dict = filterList(dict, word, result)
+
+        
+        dictlen = len(dict)
+
+        '''words = []
+        for i in range(0,dictlen):
+            print("".join(word) + " " + str(i) + "/" + str(dictlen) + "\t", end="\r")
+            score = getBitSplit(dict, dict[i])
+            freq = (wordfreq.word_frequency(dict[i], "en") ** .125) * 10
+            score = score + freq 
+
+            words.append((dict[i], score))
+        
+        totalwords = len(words)
+        while len(words) > 0:
+            lowestval = words[0]
+
+            for i in range(0,len(words)):
+                if (lowestval[1] > words[i][1]):
+                    lowestval = words[i]
             
+            words.remove(lowestval)
 
-dict = getDict()
+        
+            print(lowestval[0] + ":\t" + str(lowestval[1]))'''
+        
 
-word = "crane"
-dict = filterList(dict, word, [-1,-1,0,-1,-1])
+        words = []
+        dictlen = len(dict)
+        for i in range(0,dictlen):
+            print(str(i) + "/" + str(dictlen) + "\t", end="\r")
+            score = getBitSplit(dict, dict[i])
+            freq = Sigmoid((wordfreq.word_frequency(dict[i], "en") - mean)/sd)
+            score = score * freq
 
-word = "zappy"
-dict = filterList(dict, word, [-1,0,-1,-1,1])
+            words.append((dict[i], score))
+
+        #Sort the scores.
+        while (len(words) > 0):
+            highestval = words[0]
+            for i in range(0,len(words)):
+                if (highestval[1] > words[i][1]):
+                    highestval = words[i]
+            words.remove(highestval)
+            print(highestval[0] + ":\t" + str(highestval[1]))
+                
+
+        print(str(dictlen) + " Total Words.")
+    
+def getStartingScore(word):
+    dict = getDict()
+    bit = getBitSplit(dict, word)
+
+    print("             ", end="\r")
+    print(word + ":\t" + str(bit))
+
+def Sigmoid(x):
+    return 1/(1+math.e ** -x)
 
 
+def practiceSolver(runs):
+    dict = getDict()
+    mean, sd = getStats(dict)
+    output = ""
+
+    for i in range(0,runs):
+
+        print("game " + str(i))
+        dict = getDict()
+        game = wordle.Game()
+
+        highestval = ("crane", 0)
+        results = game.takeGuess(highestval[0])
+        
+        while results[0] != -200:
+
+            dict = filterList(dict, highestval[0], results)
+
+            #Add all values to arrays and give them scores
+            words = []
+            dictlen = len(dict)
+            for i in range(0,dictlen):
+                print(str(i) + "/" + str(dictlen) + "\t", end="\r")
+                score = getBitSplit(dict, dict[i])
+                if (game.numGuesses > 1):
+                    freq = Sigmoid((wordfreq.word_frequency(dict[i], "en") - mean)/sd)
+                    score = score * freq
+
+                words.append((dict[i], score))
+
+            #Sort the scores.
+            if (len(words) > 0):
+                highestval = words[0]
+                for i in range(0,len(words)):
+                    if (highestval[1] < words[i][1]):
+                        highestval = words[i]
 
 
-topscores = []
-words = []
-for i in range(0,len(dict)):
-    score = getBitSplit(dict, dict[i], i)
-    topscores.append(score)
-    words.append(dict[i])
+            results = game.takeGuess(highestval[0])
+            if results == [1,1,1,1,1]:
+                print("                                           ", end="\r")
+                print(str(game.numGuesses) + "\t" + highestval[0] + "\t\t")
+                output += str(game.numGuesses)
+                break
+            
+        
+        if results[0] == -200:
+            print("Loss")
+            output += "L"
 
-topscores.sort(reverse = False)
+    with open("stats.txt","w") as f:
+        f.write(output) 
+    
+    losses = 0
+    average = 0.0
+    for elem in list(output):
+        if elem == "L":
+            losses += 1
+        else:
+            average += int(elem)
+    average /= float(runs)
+    print("There were " + str(losses) + " losses with an average of " + str(average))
 
-print()
-for i in range(0,len(words)):
-    print(words[i] + ":\t" + str(topscores[i]))
+manualHelper()
