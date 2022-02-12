@@ -1,21 +1,6 @@
-from asyncore import read
 import math
-from matplotlib.pyplot import get
-from torch import real
 import wordfreq
 import wordle
-#Compare every word with every other word
-
-#take the highest average bit
-
-#use it
-
-#filter the list of words
-
-#repeat
-
-
-#Returns every word in the dict
 
 def getDict():
     with open("wordledict.txt") as f:
@@ -77,11 +62,6 @@ def filterList(dictonary, word, score):
         remove = False
         check = list(realword)
 
-        '''for j in range(0,len(word)):
-            if (score[j] == -1 and word[j] in check) or (score[j] == 1 and word[j] != check[j]) or (score[j] == 0 and word[j] not in check[:j] + check[j+1:]):
-                remove = True
-                break'''
-
         for i in range(0,len(word)):
 
                 if score[i] == 1:
@@ -140,28 +120,6 @@ def manualHelper():
 
         
         dictlen = len(dict)
-
-        '''words = []
-        for i in range(0,dictlen):
-            print("".join(word) + " " + str(i) + "/" + str(dictlen) + "\t", end="\r")
-            score = getBitSplit(dict, dict[i])
-            freq = (wordfreq.word_frequency(dict[i], "en") ** .125) * 10
-            score = score + freq 
-
-            words.append((dict[i], score))
-        
-        totalwords = len(words)
-        while len(words) > 0:
-            lowestval = words[0]
-
-            for i in range(0,len(words)):
-                if (lowestval[1] > words[i][1]):
-                    lowestval = words[i]
-            
-            words.remove(lowestval)
-
-        
-            print(lowestval[0] + ":\t" + str(lowestval[1]))'''
         
 
         words = []
@@ -197,7 +155,7 @@ def Sigmoid(x):
     return 1/(1+math.e ** -x)
 
 
-def practiceSolver(runs):
+def practiceSolver(runs, speed=2):
     dict = getDict()
     mean, sd = getStats(dict)
     output = ""
@@ -220,8 +178,8 @@ def practiceSolver(runs):
             dictlen = len(dict)
             for i in range(0,dictlen):
                 print(str(i) + "/" + str(dictlen) + "\t", end="\r")
-                score = getBitSplit(dict, dict[i])
-                if (game.numGuesses > 1):
+                score = getBitSplit(dict, dict[i], speed)
+                if (game.numGuesses > 10): #was 2
                     freq = Sigmoid((wordfreq.word_frequency(dict[i], "en") - mean)/sd)
                     score = score * freq
 
@@ -260,4 +218,4 @@ def practiceSolver(runs):
     average /= float(runs)
     print("There were " + str(losses) + " losses with an average of " + str(average))
 
-manualHelper()
+practiceSolver(1000, 10)
