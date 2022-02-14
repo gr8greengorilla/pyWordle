@@ -1,6 +1,11 @@
+from http import cookies
 import math
+from re import S
+from statistics import variance
 import wordfreq
 import wordle
+import multiprocessing
+from functools import partial
 
 def getDict():
     with open("wordledict.txt") as f:
@@ -63,14 +68,13 @@ def filterList(dictonary, word, score):
         check = list(realword)
 
         for i in range(0,len(word)):
-
-                if score[i] == 1:
-                    if (word[i] == check[i]):
-                        
-                        check[i] = "_"
-                    else:
-                        remove = True
-                        break
+            if score[i] == 1:
+                if (word[i] == check[i]):
+                    
+                    check[i] = "_"
+                else:
+                    remove = True
+                    break
         
 
         if not remove:
@@ -106,10 +110,11 @@ def getStats(dict):
 
     return mean, sd
 
-def manualHelper():
+def manualHelper(speed=2, cores=1):
     dict = getDict()
     mean, sd = getStats(dict)
 
+    guessnum = 0
     while True:
         word = input("Enter your word: ")
         result = [0,0,0,0,0]
@@ -122,15 +127,12 @@ def manualHelper():
         dictlen = len(dict)
         
 
-        words = []
-        dictlen = len(dict)
-        for i in range(0,dictlen):
-            print(str(i) + "/" + str(dictlen) + "\t", end="\r")
-            score = getBitSplit(dict, dict[i])
-            freq = Sigmoid((wordfreq.word_frequency(dict[i], "en") - mean)/sd)
-            score = score * freq
-
-            words.append((dict[i], score))
+        #Give all values a score
+        words = dict.copy()
+        if (cores > 1 and len(dict) > 500):
+            words = getScoresMulticore(guessnum, words, speed, (mean, sd), cores)
+        else:
+            words = getScores(guessnum, words, speed, (mean,sd))
 
         #Sort the scores.
         while (len(words) > 0):
@@ -143,79 +145,110 @@ def manualHelper():
                 
 
         print(str(dictlen) + " Total Words.")
+        guessnum += 1
     
-def getStartingScore(word):
+def getStartingScore(word, speed):
     dict = getDict()
-    bit = getBitSplit(dict, word)
+    bit = getBitSplit(dict, word, speed)
 
     print("             ", end="\r")
     print(word + ":\t" + str(bit))
+
 
 def Sigmoid(x):
     return 1/(1+math.e ** -x)
 
 
-def practiceSolver(runs, speed=2):
-    dict = getDict()
-    mean, sd = getStats(dict)
-    output = ""
-
-    for i in range(0,runs):
-
-        print("game " + str(i))
-        dict = getDict()
-        game = wordle.Game()
-
-        highestval = ("crane", 0)
-        results = game.takeGuess(highestval[0])
+def getScores(numguesses, dict, speed, stats):
+    words = []
+    for i, word in enumerate(dict):
+        #print(str(i) + "/" + str(dictlen) + "\t", end="\r")
+        score = getBitSplit(dict, word, speed)
         
-        while results[0] != -200:
+        #if numguesses > 2:
+        #freq = Sigmoid((wordfreq.word_frequency(word, "en") - stats[0])/stats[1])
+        #score = score * freq
 
-            dict = filterList(dict, highestval[0], results)
-
-            #Add all values to arrays and give them scores
-            words = []
-            dictlen = len(dict)
-            for i in range(0,dictlen):
-                print(str(i) + "/" + str(dictlen) + "\t", end="\r")
-                score = getBitSplit(dict, dict[i], speed)
-                if (game.numGuesses > 10): #was 2
-                    freq = Sigmoid((wordfreq.word_frequency(dict[i], "en") - mean)/sd)
-                    score = score * freq
-
-                words.append((dict[i], score))
-
-            #Sort the scores.
-            if (len(words) > 0):
-                highestval = words[0]
-                for i in range(0,len(words)):
-                    if (highestval[1] < words[i][1]):
-                        highestval = words[i]
-
-
-            results = game.takeGuess(highestval[0])
-            if results == [1,1,1,1,1]:
-                print("                                           ", end="\r")
-                print(str(game.numGuesses) + "\t" + highestval[0] + "\t\t")
-                output += str(game.numGuesses)
-                break
-            
-        
-        if results[0] == -200:
-            print("Loss")
-            output += "L"
-
-    with open("stats.txt","w") as f:
-        f.write(output) 
+        words.append((word, score))
     
-    losses = 0
-    average = 0.0
-    for elem in list(output):
-        if elem == "L":
-            losses += 1
-        else:
-            average += int(elem)
-    average /= float(runs)
-    print("There were " + str(losses) + " losses with an average of " + str(average))
+    return words
 
-practiceSolver(1000, 10)
+
+def getScoreMulticore2(guessnum, speed, stats, dict, word):
+    score = getBitSplit(dict, word, speed)
+
+    if guessnum > 2:
+            #freq = Sigmoid((wordfreq.word_frequency(word, "en") - stats[0])/stats[1])
+            freq = (wordfreq.word_frequency(word, "en") - stats[0])/stats[1]
+            score = score * freq
+
+    return (word, score)
+    
+
+def getScoresMulticore(guessnum, dict, speed, stats, cores=1):
+    
+    temp = partial(getScoreMulticore2, guessnum, speed, stats, dict)
+    print(len(dict), end="          \r")
+    with multiprocessing.Pool(cores) as pool:
+        result = pool.map(func=temp, iterable=dict)
+    return result
+
+def runGame(dict, speed, stats, _):
+
+    game = wordle.Game()
+
+    highestval = ("crane", 0)
+    results = game.takeGuess(highestval[0])
+    
+    while results[0] != -200:
+
+        dict = filterList(dict, highestval[0], results)
+
+        #Give all values a score
+        words = dict.copy()
+        words = getScores(game.numGuesses, words, speed, stats)
+
+        #Sort the scores.
+        if (len(words) > 0):
+            highestval = words[0]
+            for i in range(0,len(words)):
+                if (highestval[1] < words[i][1]):
+                    highestval = words[i]
+
+
+        results = game.takeGuess(highestval[0])
+        if results == [1,1,1,1,1]:
+            return game.numGuesses, highestval[0]
+    return (-1, "".join(game.secretWord))
+
+
+def practiceSolver(amount, dict, speed, multiprocess=False, verbose=True):
+    stats = getStats(dict)
+    temp = partial(runGame, dict, speed, stats)
+    output = []
+    if (multiprocess):
+        with multiprocessing.Pool() as pool:
+            for i, result in enumerate(pool.imap_unordered(func=temp, iterable=[0] * amount), 1):
+                print(f"\r{(i/amount) * 100:.2f}%", end="\r")
+                output.append(result)
+    else:
+        for i in range(0,amount):
+            output.append(runGame(dict, speed, stats, 0))
+            print(f"\r{(i/amount) * 100}%", end="\r")
+
+    if verbose:
+        data = [i for i, _ in output if i != -1]
+        mean = sum(data)/len(data)
+        sd = (sum((i - mean) ** 2 for i in data)/len(data)) ** .5
+
+        print(f"After {amount} trails with a speed of {speed}, there was a mean of {mean:.5f} guesses with a SD of {sd:.3f}. Fails: {len(output) - len(data)}")
+    return output
+
+
+
+#C:\Users\erik\OneDrive\Cross-Code\VSCode\PythonCode\Javascript\Wordle
+def main():
+    practiceSolver(1000,getDict(),2, multiprocess=True, verbose=True)
+
+if __name__ == '__main__':
+    main()

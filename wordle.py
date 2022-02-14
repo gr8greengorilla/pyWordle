@@ -3,24 +3,26 @@ import random
 def randomWord():
     with open("ChooseDict.txt") as f:
         line = f.readlines()[0].split(",")
-    
     return list(line[random.randint(0,len(line)-1)])
 
 def checkWord(test, word):
     sample = word[:]
     guess = test[:]
     output = [-1,-1,-1,-1,-1]
-    for i in range(0, len(guess)):
+    try:
+        for i in range(0, len(guess)):
 
-        if guess[i] == sample[i]:
-            output[i] = 1
-            sample[i] = "_"
-    
-    for i in range(0, len(guess)):
+            if guess[i] == sample[i]:
+                output[i] = 1
+                sample[i] = "_"
+        
+        for i in range(0, len(guess)):
 
-        if guess[i] in sample: #if its in any other place, return 0
-            output[i] = 0
-            sample[sample.index(guess[i])] = "_"
+            if guess[i] in sample: #if its in any other place, return 0
+                output[i] = 0
+                sample[sample.index(guess[i])] = "_"
+    except IndexError:
+        print(f"Something screwed up while comparing {test} and {word}")
     
     return output
 
@@ -126,6 +128,7 @@ class Game():
     def takeGuess(self, guess):
         if (inDic(guess)):
             if (self.numGuesses == 100):
+                print("Loss on " + "".join(self.secretWord))
                 return [-200,0,0,0,0]
             self.numGuesses += 1
             return checkWord(guess, self.secretWord)
